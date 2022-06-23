@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { MongoClient } from "mongodb";
 import dayjs from 'dayjs';
-import { Console } from 'console';
 
 dotenv.config();
 
@@ -35,13 +34,13 @@ server.post('/participants', async (req, res) => {
     }
 
     try {
-        const participant = await db.collection("participants").find({ name: req.body.name }).toArray()
-    
+        const participant = await db.collection("participants").find({ name: req.body.name }).toArray();
+
         console.log(participant);
-        if (participant) {
-            res.status(409).send("Usuario ja existe!");
-            return;
-        }
+        // if (participant) {
+        //     res.status(409).send("Usuario ja existe!");
+        //     return;
+        // }
     } catch (error) {
         res.status(500).send("erro ao procurar participante na database");
     }
@@ -63,16 +62,21 @@ server.post('/participants', async (req, res) => {
 })
 
 server.get("/messages", (req, res) => {
-    db.collection("messages").find.toArray()
+    let limit = parseInt(req.query.limit);
+
+    if (!limit) {
+        limit = 100;
+    }
+    db.collection("messages").find().toArray()
         .then(messages => {
-            res.send(messages);
+            res.send(messages.slice(-limit));
         })
         .catch(() => res.sendStatus(500));
 })
 
 server.post("/messages", (req, res) => {
 
-    if (!req.headers.user || !req.body.to || req.body.text || req.body.type) {
+    if (!req.headers.user || !req.body.to || !req.body.text || !req.body.type) {
         res.sendStatus(422);
         return;
     }
@@ -85,6 +89,31 @@ server.post("/messages", (req, res) => {
     })
     res.sendStatus(201);
 })
+
+server.post("/status", (req, res) => {
+    if (db.collection("participants").find({ name: req.headers.user }).toArray()) {
+        // db.collection("participants").Update({
+        //     name: req.body.name,
+        //     lastStatus: Date.now()
+        // });
+    } else {
+        res.sendStatus(404);
+        return;
+    }
+    res.sendStatus(200);
+})
+
+setInterval(() => {
+
+    db.collection("participants").find().toArray()
+        .then(users => {
+            users.map(user => {
+                if ((user.lastStatus + 15000) <= Date.now())
+                    db.collection("participants").deleteOne({ lastStatus: user.lastStatus });
+                console.log(user.lastStatus)
+            });
+        })
+}, 1000)
 
 server.listen(5000, () => {
     console.log("Rodando em http://localhost:5000");
