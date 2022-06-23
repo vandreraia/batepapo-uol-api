@@ -36,13 +36,13 @@ server.post('/participants', async (req, res) => {
     try {
         const participant = await db.collection("participants").find({ name: req.body.name }).toArray();
 
-        console.log(participant);
-        // if (participant) {
-        //     res.status(409).send("Usuario ja existe!");
-        //     return;
-        // }
+        if (participant.some(e => e.name === req.body.name)) {
+            res.status(409).send("Usuario ja existe!");
+            return;
+        }
     } catch (error) {
         res.status(500).send("erro ao procurar participante na database");
+        return;
     }
 
     db.collection("participants").insertOne({
@@ -108,9 +108,17 @@ setInterval(() => {
     db.collection("participants").find().toArray()
         .then(users => {
             users.map(user => {
-                if ((user.lastStatus + 15000) <= Date.now())
+                if ((user.lastStatus + 15000) <= Date.now()) {
+
                     db.collection("participants").deleteOne({ lastStatus: user.lastStatus });
-                console.log(user.lastStatus)
+                    db.collection("messages").insertOne({
+                        from: user.name,
+                        to: "Todos",
+                        text: "sai da sala...",
+                        type: "status",
+                        time: `${dayjs().hour()}:${dayjs().minute()}:${dayjs().second()}`
+                    })
+                }
             });
         })
 }, 1000)
