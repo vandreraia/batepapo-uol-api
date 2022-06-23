@@ -1,7 +1,7 @@
 import express, { json } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dayjs from 'dayjs';
 
 dotenv.config();
@@ -90,12 +90,35 @@ server.post("/messages", (req, res) => {
     res.sendStatus(201);
 })
 
-server.post("/status", (req, res) => {
-    if (db.collection("participants").find({ name: req.headers.user }).toArray()) {
-        // db.collection("participants").Update({
-        //     name: req.body.name,
-        //     lastStatus: Date.now()
-        // });
+server.delete("/messages/:id", async (req, res) => {
+    const { id } = req.params;
+    const { user } = req.headers;
+
+    const messages = await db.collection("messages").findOne({ _id: new ObjectId(id) });
+    console.log(messages.from)
+    console.log(user)
+
+    if (messages.from !== user) {
+        res.sendStatus(401);
+        return;
+    }
+    if (messages) {
+        db.collection("messages").deleteOne({ _id: messages._id })
+    } else {
+        res.sendStatus(404);
+        return;
+    }
+
+    res.sendStatus(200);
+})
+
+server.post("/status", async (req, res) => {
+    const user = await db.collection("participants").find({ name: req.headers.user }).toArray();
+
+    if (user.some(e => e.name === req.headers.user)) {
+        db.collection("participants").updateOne({
+            name: req.headers.user
+        }, { $set: { lastStatus: Date.now() } });
     } else {
         res.sendStatus(404);
         return;
