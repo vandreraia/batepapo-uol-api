@@ -26,20 +26,24 @@ server.get('/participants', (req, res) => {
         .catch(() => res.sendStatus(500));
 });
 
-server.post('/participants', (req, res) => {
 
-    db.collection("participants").find({ name: req.body.name }).toArray()
-        .then(participant => {
-            console.log(participant);
-            if (participant) {
-                res.status(409).send("Usuario ja existe!");
-                return;
-            }
-        });
+server.post('/participants', async (req, res) => {
 
     if (!req.body.name) {
         res.status(422).send("Todos os campos são obrigatórios!");
         return;
+    }
+
+    try {
+        const participant = await db.collection("participants").find({ name: req.body.name }).toArray()
+    
+        console.log(participant);
+        if (participant) {
+            res.status(409).send("Usuario ja existe!");
+            return;
+        }
+    } catch (error) {
+        res.status(500).send("erro ao procurar participante na database");
     }
 
     db.collection("participants").insertOne({
@@ -54,6 +58,7 @@ server.post('/participants', (req, res) => {
         type: "status",
         time: `${dayjs().hour()}:${dayjs().minute()}:${dayjs().second()}`
     })
+
     res.sendStatus(201);
 })
 
