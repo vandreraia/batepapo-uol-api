@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { MongoClient, ObjectId } from "mongodb";
 import dayjs from 'dayjs';
+import joi from "joi";
 
 dotenv.config();
 
@@ -28,8 +29,14 @@ server.get('/participants', (req, res) => {
 
 server.post('/participants', async (req, res) => {
 
-    if (!req.body.name) {
-        res.status(422).send("Todos os campos são obrigatórios!");
+    const participantSchema = joi.object({
+        name: joi.string().required()
+    })
+
+    const validate = participantSchema.validate(req.body);
+    if (validate.error) {
+        console.log(validate.error.details);
+        res.status(422).send("Favor informar o nome");
         return;
     }
 
@@ -76,7 +83,21 @@ server.get("/messages", (req, res) => {
 
 server.post("/messages", (req, res) => {
 
-    if (!req.headers.user || !req.body.to || !req.body.text || !req.body.type) {
+    const messageSchema = joi.object({
+        // user: joi.string().required(),
+        to: joi.string().required(),
+        text: joi.string().required(),
+        type: joi.string().valid('message', 'private_message').required()
+    })
+
+    const validate = messageSchema.validate(req.body);
+    if (validate.error) {
+        console.log(validate.error.details);
+        res.status(422).send("Favor preencher todos campos corretamente");
+        return;
+    }
+
+    if (!req.headers.user) {
         res.sendStatus(422);
         return;
     }
